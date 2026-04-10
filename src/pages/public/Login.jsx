@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Button } from "../../components/ui/button";
@@ -7,13 +7,19 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  useEffect(() => {
+    if (user) {
+      navigate(`/${user.role}`);
+    }
+  }, [user, navigate]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    const result = login(email, password);
+    const result = await login(email, password);
     if (result.success) {
       navigate(`/${result.role}`);
     } else {
@@ -60,13 +66,6 @@ export default function Login() {
             Sign In
           </Button>
         </form>
-
-        <div className="mt-8 text-center text-xs text-gray-400">
-          <p>Demo Accounts:</p>
-          <p>patient@dermai.com / password</p>
-          <p>doctor@dermai.com / password</p>
-          <p>admin@dermai.com / password</p>
-        </div>
 
         <div className="mt-6 text-center text-sm text-gray-500">
           Don't have an account?{" "}

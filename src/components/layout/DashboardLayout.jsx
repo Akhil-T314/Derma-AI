@@ -18,14 +18,12 @@ export default function DashboardLayout({ children }) {
       case "doctor":
         return [
           { name: "Dashboard", path: "/doctor", icon: LayoutDashboard },
-          { name: "Patients List", path: "/doctor/patients", icon: Users },
-          { name: "Recent Scans", path: "/doctor/scans", icon: Activity },
         ];
       case "admin":
         return [
           { name: "System Analytics", path: "/admin", icon: Activity },
+          { name: "System Activity", path: "/admin/activity", icon: FileText },
           { name: "User Management", path: "/admin/users", icon: Users },
-          { name: "Settings", path: "/admin/settings", icon: Settings },
         ];
       default:
         return [];
@@ -85,10 +83,7 @@ export default function DashboardLayout({ children }) {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm">
-          <h2 className="text-lg font-medium text-gray-800 capitalize">
-            {location.pathname.split("/").pop() || "Dashboard"}
-          </h2>
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-end px-8 shadow-sm">
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-500">{new Date().toLocaleDateString()}</span>
           </div>

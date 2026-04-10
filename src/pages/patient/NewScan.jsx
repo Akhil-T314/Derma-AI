@@ -1,47 +1,48 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { UploadCloud, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { UploadCloud, CheckCircle, AlertTriangle, RefreshCw, Clock } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Progress } from "../../components/ui/progress";
+import { useScans } from "../../context/ScanContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function NewScan() {
   const [file, setFile] = useState(null);
+  const [rawFile, setRawFile] = useState(null); // Real file for upload
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
+
+  const { uploadScan, error } = useScans();
+  const navigate = useNavigate();
 
   const handleUpload = (e) => {
     e.preventDefault();
     const uploadedFile = e.target.files[0];
     if (uploadedFile) {
       setFile(URL.createObjectURL(uploadedFile));
+      setRawFile(uploadedFile);
       setResult(null);
     }
   };
 
-  const startScan = () => {
-    if (!file) return;
+  const startScan = async () => {
+    if (!rawFile) return;
     setIsScanning(true);
-    setProgress(0);
-    
-    // Simulate AI scanning process
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsScanning(false);
-          setResult({
-            prediction: "Melanoma",
-            confidence: 89,
-            riskLevel: "High",
-            recommendation: "Immediate clinical review recommended."
-          });
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 300);
+    setProgress(30); // optimistic progress
+
+    try {
+      const apiResult = await uploadScan(rawFile);
+      setProgress(100);
+      setResult(apiResult);
+    } catch (err) {
+      console.error(err);
+      setProgress(0);
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const resetScan = () => {
@@ -66,11 +67,11 @@ export default function NewScan() {
         {/* Upload Section */}
         <Card className="p-6 bg-white border border-gray-100 shadow-sm rounded-xl">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Upload Image</h2>
-          
+
           {!file ? (
             <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <UploadCloud className="w-10 h-10 mb-3 text-gray-400" />
+                <UploadCloud className="w-10 h-10 mb-3 text-gray-400" />        
                 <p className="mb-2 text-sm text-gray-500 font-medium">Click to upload or drag and drop</p>
                 <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
               </div>
@@ -81,7 +82,7 @@ export default function NewScan() {
               <div className="relative w-full h-64 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
                 <img src={file} alt="Lesion preview" className="w-full h-full object-cover" />
               </div>
-              
+
               {!isScanning && !result && (
                 <div className="flex space-x-3">
                   <Button onClick={startScan} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md">
@@ -98,47 +99,50 @@ export default function NewScan() {
           {isScanning && (
             <div className="mt-6 space-y-2">
               <div className="flex justify-between text-sm font-medium text-gray-700">
-                <span>Analyzing lesion features...</span>
+                <span>Uploading and preparing case file...</span>
                 <span>{progress}%</span>
               </div>
               <Progress value={progress} className="h-2 bg-blue-100" />
+            </div>
+          )}
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              {error}
             </div>
           )}
         </Card>
 
         {/* Results Section */}
         <Card className={`p-6 bg-white border shadow-sm rounded-xl transition-all duration-300 ${result ? 'border-gray-200' : 'border-dashed border-gray-200 opacity-50'}`}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Analysis Results</h2>
-          
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Scan Submission</h2>
+
           {!result ? (
             <div className="flex flex-col items-center justify-center h-64 text-center px-4">
               <CheckCircle className="w-12 h-12 text-gray-200 mb-3" />
-              <p className="text-sm font-medium text-gray-400">Results will appear here after analysis</p>
+              <p className="text-sm font-medium text-gray-400">Status will appear here after upload</p>
             </div>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              <div className={`p-4 rounded-lg flex items-start space-x-3 ${result.riskLevel === 'High' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-800'}`}>
-                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div className="p-6 rounded-lg flex flex-col items-center text-center space-y-4 bg-blue-50 border border-blue-100">
+                <CheckCircle className="w-12 h-12 text-blue-600" />
                 <div>
-                  <h3 className="font-semibold text-sm uppercase tracking-wider">Primary Prediction</h3>
-                  <p className="text-2xl font-bold mt-1">{result.prediction}</p>
-                  <p className="text-sm mt-1 opacity-90">{result.recommendation}</p>
+                  <h3 className="font-semibold text-lg text-gray-900">Scan submitted successfully</h3>
+                  <p className="text-sm mt-2 text-gray-600">Your scan has been securely uploaded to our system.</p>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-amber-50 border border-amber-100 flex items-start space-x-3 text-amber-800">
+                <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
                 <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-700">AI Confidence Score</span>
-                    <span className="font-bold text-gray-900">{result.confidence}%</span>
-                  </div>
-                  <Progress value={result.confidence} className="h-2 bg-gray-100" />
+                  <h3 className="font-semibold text-sm uppercase tracking-wider">Status: Pending Doctor Review</h3>
+                  <p className="text-sm mt-1 opacity-90">An AI preliminary check was completed. A certified dermatologist is currently reviewing your case. You will be notified when your final results are ready.</p>
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-gray-100 flex space-x-3">
-                <Button className="flex-1 bg-gray-900 hover:bg-black text-white py-2 rounded-md shadow-sm">
-                  Send to Doctor
+              <div className="pt-6 border-t border-gray-100 flex space-x-3">    
+                <Button onClick={() => navigate(`/patient/case/${result.id}`)} className="flex-1 bg-gray-900 hover:bg-black text-white py-2 rounded-md shadow-sm">
+                  View Case Status
                 </Button>
                 <Button onClick={resetScan} variant="outline" className="flex-none px-4 py-2 rounded-md border-gray-300">
                   <RefreshCw className="w-4 h-4 text-gray-600" />

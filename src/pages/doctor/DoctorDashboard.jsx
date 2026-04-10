@@ -1,16 +1,19 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, Filter, AlertCircle, ChevronRight, User } from "lucide-react";
+import { Search, Filter, AlertCircle, ChevronRight, User, Loader2 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-
-const mockPatients = [
-  { id: "P-1042", name: "Sarah Connor", age: 45, lesion: "Melanoma", risk: "High", status: "Requires Review", date: "2026-04-06" },
-  { id: "P-1089", name: "John Smith", age: 62, lesion: "Actinic Keratosis", risk: "Medium", status: "Pending", date: "2026-04-05" },
-  { id: "P-1102", name: "Emily Chen", age: 28, lesion: "Benign Nevus", risk: "Low", status: "Reviewed", date: "2026-04-03" },
-];
+import { useScans } from "../../context/ScanContext";
 
 export default function DoctorDashboard() {
+  const { doctorQueue, fetchDoctorQueue, isLoading, error } = useScans();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchDoctorQueue();
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -40,90 +43,114 @@ export default function DoctorDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64 text-blue-600">
+           <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      ) : error ? (
+        <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
+           <AlertCircle className="w-5 h-5" />
+           {error}
+        </div>
+      ) : (
+      <div className="flex flex-col space-y-8">
         {/* Urgent Cases Panel */}
-        <div className="lg:col-span-1 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-2">Needs Attention</h2>
-          {mockPatients.filter(p => p.risk === "High").map(patient => (
-            <Card key={patient.id} className="p-4 bg-white border border-red-100 shadow-sm rounded-xl hover:shadow-md transition-shadow cursor-pointer relative overflow-hidden">
+        <Card className="w-full bg-white border border-red-100 shadow-sm rounded-xl overflow-hidden">
+          <div className="p-5 border-b border-red-100 bg-red-50/50 flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Needs Attention</h2>
+            </div>
+            <span className="flex items-center justify-center bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded-full">
+              {doctorQueue.filter(p => p?.risk_level === "High").length} Urgent Cases
+            </span>
+          </div>
+          <div className="p-5 bg-gray-50/30 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {doctorQueue.filter(p => p?.risk_level === "High").map((patient, idx) => (
+            <Card key={patient?.id || `urgent-${idx}`} onClick={() => navigate(`/doctor/case/${patient?.id}`)} className="p-4 bg-white border border-red-200 shadow-sm rounded-xl hover:shadow-md transition-shadow cursor-pointer relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
               <div className="flex items-start space-x-3 pl-2">
-                <div className="p-2 bg-red-50 rounded-full text-red-600 mt-1">
+                <div className="p-2 bg-red-50 rounded-full text-red-700 mt-1">
                   <AlertCircle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{patient.name}</h3>
-                  <p className="text-xs text-gray-500 mt-1">{patient.id} • {patient.age} yrs</p>
-                  <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                    {patient.lesion}
+                  <h3 className="font-semibold text-gray-900">{patient?.patient_name || "Unknown Patient"}</h3>
+                  <p className="text-xs text-gray-500 mt-1">ID: {patient?.id?.split('-')[0]}</p>
+                  <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700 border border-red-100">
+                    {patient?.ai_prediction || "Unknown Lesion"}
                   </div>
                 </div>
               </div>
             </Card>
           ))}
-        </div>
+          </div>
+        </Card>
 
         {/* Patient List Panel */}
-        <div className="lg:col-span-3">
+        <div className="w-full">
           <Card className="bg-white border border-gray-100 shadow-sm rounded-xl overflow-hidden">
             <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Cases</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Pending Queue</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 font-medium">Patient</th>
+                    <th className="px-6 py-4 font-medium">Patient Name</th>
                     <th className="px-6 py-4 font-medium">AI Diagnosis</th>
                     <th className="px-6 py-4 font-medium">Risk Level</th>
-                    <th className="px-6 py-4 font-medium">Date</th>
-                    <th className="px-6 py-4 font-medium">Current Status</th>
+                    <th className="px-6 py-4 font-medium">Upload Date</th>
                     <th className="px-6 py-4 font-medium text-right"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {mockPatients.map((patient) => (
-                    <tr key={patient.id} className="hover:bg-gray-50/50 transition-colors group">
+                  {doctorQueue.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                         No pending scans requiring review.
+                      </td>
+                    </tr>
+                  )}
+                  {doctorQueue.map((patient, idx) => {
+                    if (!patient) return null;
+                    return (
+                    <tr key={patient.id || `patient-row-${idx}`} className="hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => navigate(`/doctor/case/${patient.id}`)}>
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs mr-3">
                             <User className="w-4 h-4" />
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900">{patient.name}</div>
-                            <div className="text-xs text-gray-500">{patient.id}</div>
+                            <div className="font-medium text-gray-900">{patient.patient_name || "Unknown Patient"}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-medium text-gray-900">{patient.lesion}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900">{patient.ai_prediction}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          patient.risk === 'High' ? 'bg-red-100 text-red-800' : 
-                          patient.risk === 'Medium' ? 'bg-amber-100 text-amber-800' : 
+                          patient.risk_level === 'High' ? 'bg-red-100 text-red-800' : 
+                          patient.risk_level === 'Medium' ? 'bg-amber-100 text-amber-800' : 
                           'bg-green-100 text-green-800'
                         }`}>
-                          {patient.risk}
+                          {patient.risk_level}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-500">{patient.date}</td>
-                      <td className="px-6 py-4">
-                        <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                          {patient.status}
-                        </span>
-                      </td>
+                      <td className="px-6 py-4 text-gray-500">{new Date(patient.created_at).toLocaleDateString()}</td>
                       <td className="px-6 py-4 text-right">
                         <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-blue-600 transition-opacity">
                           View Case <ChevronRight className="w-4 h-4 ml-1" />
                         </Button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </Card>
         </div>
       </div>
+      )}
     </motion.div>
   );
 }

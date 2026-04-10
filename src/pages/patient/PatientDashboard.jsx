@@ -1,16 +1,26 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Activity, Clock, FileText, ArrowRight } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-
-const mockRecentScans = [
-  { id: 1, date: "2026-04-01", result: "Benign", confidence: "98%", status: "Reviewed" },
-  { id: 2, date: "2026-03-15", result: "Actinic Keratosis", confidence: "87%", status: "Needs Review" },
-];
+import { useScans } from "../../context/ScanContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function PatientDashboard() {
+  const { patientHistory, fetchPatientHistory } = useScans();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    fetchPatientHistory();
+  }, []);
+
+  const myScans = patientHistory || [];
+
+  const pendingReviews = myScans.filter(s => s.status !== "Reviewed").length;
+  const recentScans = myScans.slice(0, 3); // Get top 3
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -20,7 +30,7 @@ export default function PatientDashboard() {
     >
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back, Patient</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name || "Patient"}</h1>
           <p className="text-gray-500 mt-1">Here is your dermatological health overview.</p>
         </div>
         <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-2">
@@ -35,7 +45,7 @@ export default function PatientDashboard() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Total Scans</p>
-            <h3 className="text-2xl font-bold text-gray-900">12</h3>
+            <h3 className="text-2xl font-bold text-gray-900">{myScans.length}</h3>
           </div>
         </Card>
         
@@ -45,7 +55,7 @@ export default function PatientDashboard() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Recent Reports</p>
-            <h3 className="text-2xl font-bold text-gray-900">2</h3>
+            <h3 className="text-2xl font-bold text-gray-900">{recentScans.length}</h3>
           </div>
         </Card>
 
@@ -55,7 +65,7 @@ export default function PatientDashboard() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Pending Reviews</p>
-            <h3 className="text-2xl font-bold text-gray-900">1</h3>
+            <h3 className="text-2xl font-bold text-gray-900">{pendingReviews}</h3>
           </div>
         </Card>
       </div>
@@ -63,8 +73,10 @@ export default function PatientDashboard() {
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Recent Scans</h2>
-          <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50">
-            View All <ArrowRight className="w-4 h-4 ml-1" />
+          <Button asChild variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50">
+            <Link to="/patient/reports">
+              View All <ArrowRight className="w-4 h-4 ml-1" />
+            </Link>
           </Button>
         </div>
         <Card className="overflow-hidden border border-gray-100 shadow-sm rounded-xl bg-white">
@@ -72,18 +84,18 @@ export default function PatientDashboard() {
             <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
               <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">AI Prediction</th>
-                <th className="px-6 py-4 font-medium">Confidence</th>
+                <th className="px-6 py-4 font-medium">Scan ID</th>
+                
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {mockRecentScans.map((scan) => (
+              {recentScans.map((scan) => (
                 <tr key={scan.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 text-gray-900">{scan.date}</td>
-                  <td className="px-6 py-4 font-medium text-gray-900">{scan.result}</td>
-                  <td className="px-6 py-4 text-gray-600">{scan.confidence}</td>
+                  <td className="px-6 py-4 text-gray-900">{new Date(scan.created_at).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 font-medium text-gray-900">{scan.id?.substring(0,8)}</td>
+                  
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       scan.status === "Reviewed" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
@@ -92,9 +104,9 @@ export default function PatientDashboard() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                    <Button onClick={() => navigate(`/patient/case/${scan.id}`)} variant="ghost" className="text-blue-600 hover:text-blue-800 font-medium text-sm">
                       View Details
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}

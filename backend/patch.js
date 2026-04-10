@@ -1,0 +1,11 @@
+const fs = require("fs");
+let s = fs.readFileSync("C:/Users/Alan roy/Desktop/thankachan-new/src/pages/shared/CaseDetail.jsx", "utf8");
+let origin1 = "src={scan.original_image_url || scan.image_url ? `http://localhost:3000${(scan.original_image_url || scan.image_url)}` : \"https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=400\"}";
+let replace1 = "src={getImageUrl(scan.original_image_url || scan.image_url) || \"https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=400\"}";
+let origin2 = "src={scan.xai_heatmap_url ? `http://localhost:3000${scan.xai_heatmap_url}` : (scan.original_image_url || scan.image_url ? `http://localhost:3000${(scan.original_image_url || scan.image_url)}` : \"https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=400\")}";
+let replace2 = "src={getImageUrl(scan.xai_heatmap_url) || getImageUrl(scan.original_image_url || scan.image_url) || \"https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=400\"}";
+s = s.replace(origin1, replace1);
+s = s.replace(origin2, replace2);
+fs.writeFileSync("C:/Users/Alan roy/Desktop/thankachan-new/src/pages/shared/CaseDetail.jsx", s);
+console.log(s.includes(replace1) ? "Match 1 Success" : "Match 1 Fail");
+console.log(s.includes(replace2) ? "Match 2 Success" : "Match 2 Fail");
