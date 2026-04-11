@@ -119,11 +119,6 @@ export default function CaseDetail() {
     console.log('RAW scan.progressions:', scan.progressions);
     const progressionData = scan.progressions?.map((p) => ({ date: p.month_label, riskScore: Number(p.risk_score) })) || [];  
   console.log("progressionData:", progressionData);
-  const testData = [
-    { date: "Baseline", riskScore: 40 },
-    { date: "Current", riskScore: 80 },
-    { date: "Forecast (XGBoost)", riskScore: 92 }
-  ];
     console.log('FINAL progressionData:', progressionData);
     console.log('isDoctor:', isDoctor);
     const confidencePercentage = scan.confidence_score || 0;
@@ -223,6 +218,10 @@ export default function CaseDetail() {
                         className="object-cover w-full h-full"
                         style={{ filter: 'contrast(1.35) saturate(1.2) brightness(1.1) drop-shadow(0 0 0.5rem rgba(0,0,0,0.1))', mixBlendMode: 'luminosity' }}
                       />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/80 to-transparent p-3 pt-8 text-white pointer-events-none">
+                        <p className="text-xs font-medium">Enhanced contrast view</p>
+                        <p className="text-[9px] font-bold text-indigo-300 mt-1 tracking-wider uppercase">Simulated visualization (backend model not integrated)</p>
+                      </div>
                     </div>
                   </div>
 
@@ -239,8 +238,9 @@ export default function CaseDetail() {
                         alt="Grad-CAM Heatmap"
                         className="object-cover w-full h-full opacity-90"
                       />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/80 to-transparent p-3 pt-8 text-white pointer-events-none">       
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/80 to-transparent p-3 pt-8 text-white pointer-events-none">
                         <p className="text-xs font-medium">Gradient-weighted Class Activation Mapping</p>
+                        <p className="text-[9px] font-bold text-red-300 mt-1 tracking-wider uppercase">Simulated visualization (backend model not integrated)</p>
                       </div>
                     </div>
                   </div>
@@ -259,8 +259,9 @@ export default function CaseDetail() {
                         className="object-cover w-full h-full opacity-90"
                         style={{ filter: 'hue-rotate(180deg) saturate(1.5)' }}
                       />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/80 to-transparent p-3 pt-8 text-white pointer-events-none">       
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/80 to-transparent p-3 pt-8 text-white pointer-events-none">
                         <p className="text-xs font-medium">Pixel-level propagation highlighting lesion boundaries</p>
+                        <p className="text-[9px] font-bold text-emerald-300 mt-1 tracking-wider uppercase">Simulated visualization (backend model not integrated)</p>
                       </div>
                     </div>
                   </div>
@@ -269,16 +270,16 @@ export default function CaseDetail() {
             </div>
           </Card>
 
-          {/* DOCTOR ONLY: Progression History Chart & Future XGBoost Prediction */}
-            {true && (
-              <div style={{ width: "100%", height: 350, border: "2px solid red", padding: "10px" }}>
+          {/* DOCTOR ONLY: Progression History Chart */}
+            {isDoctor && progressionData && progressionData.length > 0 && (
+              <div className="col-span-1 lg:col-span-2">
                 <Card className="p-6 bg-white border border-gray-200 shadow-sm rounded-xl print:hidden h-full">
                   <h2 className="font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                    <Activity className="w-5 h-5 text-blue-600" /> Future Disease Progression Forecast (XGBoost Model)
+                    <Activity className="w-5 h-5 text-blue-600" /> Risk Progression Timeline (Historical)
                   </h2>
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={testData} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
+                      <LineChart data={progressionData} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                         <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
                         <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} domain={[0, 100]} />
@@ -345,7 +346,7 @@ export default function CaseDetail() {
           ) : isDoctor ? (
             /* DOCTOR PRE-REVIEW SECTION */
             <Card className="p-6 border border-gray-100 bg-white rounded-xl shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Hybrid Framework Prediction (XGBoost)</h3>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Hybrid Model Architecture (Planned)</h3>
               <div className="text-3xl font-bold text-gray-900 mb-2">{scan.ai_prediction || "Unknown"}</div>
               
               <div className="flex flex-wrap gap-2 mt-3 mb-1">
