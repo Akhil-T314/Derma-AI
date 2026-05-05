@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const axios = require('axios');
+const path = require('path');
 const { Pool } = require('pg');
 
 const app = express();
@@ -80,33 +81,53 @@ app.post('/api/scans/upload', requireAuth, upload.single('image'), async (req, r
     }
 
     // Call Python ML Service
-    const mlResponse = await axios.post('http://localhost:8000/predict', {
-      image_path: req.file.path
-    });
+      const absolutePath = path.resolve(__dirname, req.file.path);
+        const mlResponse = await axios.post('http://localhost:8000/predict', {
+          image_path: absolutePath
+        });
 
-    const { ai_prediction, confidence_score, risk_level, recommendation, xai_heatmap_url } = mlResponse.data;
+        console.log("ML Response:", mlResponse.data);
 
-      // Check if the patient already has an assigned doctor
-      const userRes = await pool.query('SELECT assigned_doctor_id FROM Users WHERE id = $1', [req.user.id]);
-      const assignedDoctorId = userRes.rows[0]?.assigned_doctor_id || null;
-      const initialStatus = assignedDoctorId ? 'assigned' : 'pending';
+        // Safe checks to prevent undefined errors
+        const aiData = mlResponse.data || {};
+        const final_prediction = aiData.final_prediction || "Uncertain";
+        const primary_prediction = aiData.primary_prediction || "Unknown";
+        const primary_confidence = aiData.primary_confidence || 0;
+        const secondary_prediction = aiData.secondary_prediction || "Unknown";
+        const secondary_confidence = aiData.secondary_confidence || 0;
 
-      // Save to Supabase with inherited doctor
-      const insertQuery = `
-        INSERT INTO Scans (patient_id, original_image_url, xai_heatmap_url, ai_prediction, confidence_score, risk_level, recommendation, status, doctor_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
-      `;
-      const result = await pool.query(insertQuery, [
-        req.user.id, req.file.path, xai_heatmap_url, ai_prediction, confidence_score, risk_level, recommendation, initialStatus, assignedDoctorId
-      ]);
+        const confidence_score_pct = Number(primary_confidence) * 100;
+        const risk_level = 'Pending';
+        const recommendation = 'Awaiting review.';
+        const xai_heatmap_url = aiData.xai_heatmap_url || '';
+        const preprocessed_image_url = aiData.preprocessed_image_url || '';
+        // Check if the patient already has an assigned doctor
+        const userRes = await pool.query('SELECT assigned_doctor_id FROM Users WHERE id = $1', [req.user.id]);
+        const assignedDoctorId = userRes.rows[0]?.assigned_doctor_id || null;
+        const initialStatus = assignedDoctorId ? 'assigned' : 'pending';
 
-    const newScan = result.rows[0];
-
+        // Save to Supabase with inherited doctor
+        const insertQuery = `
+          INSERT INTO Scans (
+            patient_id, original_image_url, xai_heatmap_url, preprocessed_image_url,
+            ai_prediction, confidence_score, risk_level, recommendation, status, doctor_id,
+            final_prediction, primary_prediction, primary_confidence, secondary_prediction, secondary_confidence
+          ) 
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *;
+        `;
+        const result = await pool.query(insertQuery, [
+          req.user.id, req.file.path, xai_heatmap_url, preprocessed_image_url,
+          final_prediction, confidence_score_pct, risk_level, recommendation, initialStatus, assignedDoctorId,
+          final_prediction, primary_prediction, primary_confidence, secondary_prediction, secondary_confidence
+        ]);
+        const savedScan = result.rows[0];
     const patientSafeResponse = {
-      id: newScan.id,
-      status: newScan.status,
-      created_at: newScan.created_at,
-      original_image_url: newScan.original_image_url
+      id: savedScan.id,
+      status: savedScan.status,
+      created_at: savedScan.created_at,
+      original_image_url: savedScan.original_image_url,
+      xai_heatmap_url: savedScan.xai_heatmap_url,
+      preprocessed_image_url: savedScan.preprocessed_image_url
     };
 
     res.status(201).json(patientSafeResponse);
@@ -161,38 +182,26 @@ app.get('/api/scans/:id', requireAuth, async (req, res) => {
       LEFT JOIN Users u ON s.patient_id = u.id 
       WHERE s.id = $1
     `, [scanId]);
+
     if (scanResult.rows.length === 0) return res.status(404).json({ error: 'Scan not found' });
-    
-    const progressionsResult = await pool.query("SELECT to_char(created_at, 'Mon DD HH12:MI AM') as month_label, confidence_score as risk_score FROM Scans WHERE patient_id = $1 ORDER BY created_at ASC", [scanResult.rows[0].patient_id]);
-    
-    // Construct single unified object
+
+    const progressionsResult = await pool.query("SELECT to_char(created_at, 'Mon DD HH12:MI AM') as month_label, confidence_score as risk_score FROM Scans WHERE patient_id = $1 ORDER BY created_at ASC", [scanResult.rows[0].patient_id]);    
+
     const scan = scanResult.rows[0];
     scan.progressions = progressionsResult.rows;
-    if (req.user.role === 'patient') {
-      const patientSafeScan = {
-        id: scan.id,
-        patient_id: scan.patient_id,
-        status: scan.status,
-        created_at: scan.created_at,
-        original_image_url: scan.original_image_url,
-        final_diagnosis: scan.status === 'reviewed' ? scan.final_diagnosis : null,
-        doctor_notes: scan.status === 'reviewed' ? scan.doctor_notes : null,
-        action_plan: scan.status === 'reviewed' ? scan.action_plan : null,
-        progressions: []
-      };
-      return res.json(patientSafeScan);
-    }
-    res.json(scan);
+
+    // Pass directly to frontend
+    return res.json(scan);
   } catch (e) {
     console.error('GET /api/scans/:id Error:', e.message);
     res.status(500).json({ error: 'Failed to fetch scan details' });
   }
 });
 
-app.put('/api/scans/:id/review', requireAuth, async (req, res) => {
-  const { doctorNotes, privateNotes, finalDiagnosis, actionPlan, status } = req.body;
-  try {
-    const query = `
+  app.put('/api/scans/:id/review', requireAuth, async (req, res) => {
+    const { doctorNotes, privateNotes, finalDiagnosis, actionPlan, status } = req.body;
+    try {
+      const query = `
       UPDATE Scans SET doctor_notes = $1, final_diagnosis = $2, status = $3, doctor_id = $4, private_clinical_notes = $5, action_plan = $6, updated_at = NOW()
       WHERE id = $7 RETURNING *;
     `;

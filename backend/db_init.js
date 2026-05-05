@@ -36,6 +36,7 @@ async function initDB() {
         doctor_id UUID REFERENCES Users(id) NULL,
         original_image_url TEXT,
         xai_heatmap_url TEXT,
+        preprocessed_image_url TEXT,
         ai_prediction VARCHAR(50),
         confidence_score DECIMAL,
         risk_level VARCHAR(20),
@@ -44,6 +45,10 @@ async function initDB() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    try {
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS preprocessed_image_url TEXT;");
+    } catch(e) { console.log('Column likely exists', e.message); }
 
     console.log('3. Seeding Default Admin');
     const adminCheck = await pool.query("SELECT * FROM Users WHERE email = 'admin@dermai.com'");

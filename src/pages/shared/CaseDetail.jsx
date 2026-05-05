@@ -31,6 +31,10 @@ export default function CaseDetail() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    console.log("SCAN STATE:", scan);
+  }, [scan]);
+
+  useEffect(() => {
     const fetchScanData = async () => {
       try {
         const token = localStorage.getItem("token") || JSON.parse(localStorage.getItem("dermai_user") || "{}").id;
@@ -38,6 +42,7 @@ export default function CaseDetail() {
           headers: { Authorization: `Bearer ` + token }
         });
 
+        console.log("API RESPONSE:", res.data);
         setScan(res.data);
         if (res.data) {
            setDoctorNotes(res.data.doctor_notes || "");
@@ -194,11 +199,15 @@ export default function CaseDetail() {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">1. Original Image</p>
                 </div>
                 <div className="flex-1 min-h-[220px] bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center relative">
-                  <img
-                    src={getImageUrl(scan.original_image_url || scan.image_url) || "https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=400"}      
-                    alt="Original Dermoscopy"
-                    className="object-cover w-full h-full"
-                  />
+                  {scan.original_image_url || scan.image_url ? (
+                    <img
+                      src={getImageUrl(scan.original_image_url || scan.image_url)}
+                      alt="Original Dermoscopy"
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <p className="text-gray-500 font-medium">No original image</p>
+                  )}
                 </div>
               </div>
 
@@ -212,16 +221,15 @@ export default function CaseDetail() {
                       </p>
                     </div>
                     <div className="flex-1 min-h-[220px] bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center relative">
-                      <img
-                        src={getImageUrl(scan.original_image_url || scan.image_url) || "https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=400"}
-                        alt="Preprocessed enhanced contrast"
-                        className="object-cover w-full h-full"
-                        style={{ filter: 'contrast(1.35) saturate(1.2) brightness(1.1) drop-shadow(0 0 0.5rem rgba(0,0,0,0.1))', mixBlendMode: 'luminosity' }}
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/80 to-transparent p-3 pt-8 text-white pointer-events-none">
-                        <p className="text-xs font-medium">Enhanced contrast view</p>
-                        <p className="text-[9px] font-bold text-indigo-300 mt-1 tracking-wider uppercase">Simulated visualization (backend model not integrated)</p>
-                      </div>
+                      {scan?.preprocessed_image_url ? (
+                        <img 
+                          src={getImageUrl(scan.preprocessed_image_url)} 
+                          alt="Preprocessed" 
+                          className="object-cover w-full h-full rounded-lg" 
+                        />
+                      ) : (
+                        <p className="text-gray-500 font-medium">No preprocessing available</p>
+                      )}
                     </div>
                   </div>
 
@@ -233,36 +241,23 @@ export default function CaseDetail() {
                       </p>
                     </div>
                     <div className="flex-1 min-h-[220px] bg-red-50 rounded-lg overflow-hidden flex items-center justify-center relative">
-                      <img
-                        src={getImageUrl(scan.xai_heatmap_url) || getImageUrl(scan.original_image_url || scan.image_url) || "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=400"}
-                        alt="Grad-CAM Heatmap"
-                        className="object-cover w-full h-full opacity-90"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/80 to-transparent p-3 pt-8 text-white pointer-events-none">
-                        <p className="text-xs font-medium">Gradient-weighted Class Activation Mapping</p>
-                        <p className="text-[9px] font-bold text-red-300 mt-1 tracking-wider uppercase">Simulated visualization (backend model not integrated)</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 4. XAI LRP */}
-                  <div className="bg-white p-3 flex flex-col h-full rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">        
-                      <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                        <Activity className="w-3 h-3" /> 4. XAI: Layer-wise Relevance Propagation (LRP)
-                      </p>
-                    </div>
-                    <div className="flex-1 min-h-[220px] bg-emerald-50 rounded-lg overflow-hidden flex items-center justify-center relative">
-                      <img
-                        src={getImageUrl(scan.xai_heatmap_url) || getImageUrl(scan.original_image_url || scan.image_url) || "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=400"}
-                        alt="LRP Heatmap"
-                        className="object-cover w-full h-full opacity-90"
-                        style={{ filter: 'hue-rotate(180deg) saturate(1.5)' }}
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/80 to-transparent p-3 pt-8 text-white pointer-events-none">
-                        <p className="text-xs font-medium">Pixel-level propagation highlighting lesion boundaries</p>
-                        <p className="text-[9px] font-bold text-emerald-300 mt-1 tracking-wider uppercase">Simulated visualization (backend model not integrated)</p>
-                      </div>
+                      {scan?.xai_heatmap_url ? (
+                        <>
+                          <img
+                            src={getImageUrl(scan.xai_heatmap_url)}
+                            alt="Heatmap"
+                            className="object-cover w-full h-full opacity-90 rounded-lg"
+                            onError={(e) => {
+                              e.target.src = "/fallback.png";
+                            }}
+                          />
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/80 to-transparent p-3 pt-8 text-white pointer-events-none rounded-b-lg">
+                            <p className="text-xs font-medium">Gradient-weighted Class Activation Mapping</p>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-gray-500 font-medium">No heatmap available</p>
+                      )}
                     </div>
                   </div>
                 </>
@@ -278,7 +273,7 @@ export default function CaseDetail() {
                     <Activity className="w-5 h-5 text-blue-600" /> Risk Progression Timeline (Historical)
                   </h2>
                   <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="99%" height={256}>
                       <LineChart data={progressionData} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                         <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
