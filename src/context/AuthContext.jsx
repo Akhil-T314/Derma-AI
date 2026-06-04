@@ -29,14 +29,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, metadata = {}) => {
     try {
-      const res = await axios.post("http://localhost:3000/api/auth/register", { name, email, password });
+      const res = await axios.post("http://localhost:3000/api/auth/register", { 
+        name, 
+        email, 
+        password,
+        age: metadata.age,
+        gender: metadata.gender
+      });
       // Don't auto login, let them login
       return { success: true };
     } catch (err) {
       console.error(err);
       return { success: false, message: err.response?.data?.error || "Registration failed" };
+    }
+  };
+
+  const updateProfile = async (profileData) => {
+    try {
+      const res = await axios.put("http://localhost:3000/api/profile", profileData, {
+        headers: { Authorization: `Bearer ${user.id}` }
+      });
+      const updatedUser = { ...user, ...res.data };
+      setUser(updatedUser);
+      localStorage.setItem("dermai_user", JSON.stringify(updatedUser));
+      return { success: true };
+    } catch (err) {
+      console.error(err);
+      return { success: false, message: err.response?.data?.error || "Update failed" };
     }
   };
 
@@ -46,7 +67,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, updateProfile, logout }}>
       {children}
     </AuthContext.Provider>
   );

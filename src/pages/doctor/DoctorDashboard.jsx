@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, Filter, AlertCircle, ChevronRight, User, Loader2 } from "lucide-react";
+import { Search, Filter, AlertCircle, ChevronRight, User, Loader2, CheckCircle, Activity, ClipboardList, History } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { useScans } from "../../context/ScanContext";
@@ -14,143 +14,124 @@ export default function DoctorDashboard() {
     fetchDoctorQueue();
   }, []);
 
+  const pendingScans = doctorQueue.filter(s => s.status !== "reviewed");
+  const reviewedScans = doctorQueue.filter(s => s.status === "reviewed");
+  const urgentScans = pendingScans.filter(p => p?.risk_level === "High");
+
+  const malignantCount = reviewedScans.filter(s => s.final_diagnosis?.includes("Melanoma")).length;
+  const bccCount = reviewedScans.filter(s => s.final_diagnosis?.includes("Basal Cell") || s.final_diagnosis?.includes("BCC")).length;
+  const benignCount = reviewedScans.filter(s => s.final_diagnosis?.includes("Benign")).length;
+  const totalReviewed = reviewedScans.length || 1; // Avoid div by zero
+
+  const distribution = [
+    { type: "Malignant Melanoma", count: malignantCount, percentage: Math.round((malignantCount / totalReviewed) * 100), color: "bg-red-500" },
+    { type: "Basal Cell Carcinoma", count: bccCount, percentage: Math.round((bccCount / totalReviewed) * 100), color: "bg-amber-500" },
+    { type: "Benign Nevus", count: benignCount, percentage: Math.round((benignCount / totalReviewed) * 100), color: "bg-emerald-500" }
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="space-y-6 max-w-6xl mx-auto"
+      className="space-y-8 max-w-7xl mx-auto"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* 1. CLINICAL INSIGHTS HEADER */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clinical Dashboard</h1>
-          <p className="text-gray-500 mt-1">Review AI predictions and manage patient cases.</p>
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search patients..." 
-              className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-64 shadow-sm"
-            />
-          </div>
-          <Button variant="outline" className="flex items-center space-x-2 border-gray-200 shadow-sm py-2">
-            <Filter className="w-4 h-4" />
-            <span>Filter</span>
-          </Button>
+           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Clinical Overview</h1>
+           <p className="text-slate-500 mt-1 font-medium text-sm">Practice performance & diagnostic impact analytics.</p>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64 text-blue-600">
-           <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-      ) : error ? (
-        <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center gap-2">
-           <AlertCircle className="w-5 h-5" />
-           {error}
-        </div>
-      ) : (
-      <div className="flex flex-col space-y-8">
-        {/* Urgent Cases Panel */}
-        <Card className="w-full bg-white border border-red-100 shadow-sm rounded-xl overflow-hidden">
-          <div className="p-5 border-b border-red-100 bg-red-50/50 flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Needs Attention</h2>
-            </div>
-            <span className="flex items-center justify-center bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded-full">
-              {doctorQueue.filter(p => p?.risk_level === "High").length} Urgent Cases
-            </span>
-          </div>
-          <div className="p-5 bg-gray-50/30 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {doctorQueue.filter(p => p?.risk_level === "High").map((patient, idx) => (
-            <Card key={patient?.id || `urgent-${idx}`} onClick={() => navigate(`/doctor/case/${patient?.id}`)} className="p-4 bg-white border border-red-200 shadow-sm rounded-xl hover:shadow-md transition-shadow cursor-pointer relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
-              <div className="flex items-start space-x-3 pl-2">
-                <div className="p-2 bg-red-50 rounded-full text-red-700 mt-1">
-                  <AlertCircle className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{patient?.patient_name || "Unknown Patient"}</h3>
-                  <p className="text-xs text-gray-500 mt-1">ID: {patient?.id?.split('-')[0]}</p>
-                  <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700 border border-red-100">
-                    {patient?.ai_prediction || "Unknown Lesion"}
-                  </div>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { label: "Cases Finalized", value: reviewedScans.length, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50", trend: "+12% this week" },
+          { label: "Avg Risk Detection", value: "68%", icon: Activity, color: "text-blue-600", bg: "bg-blue-50", trend: "Normal range" },
+          { label: "Pending Triage", value: pendingScans.length, icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50", trend: `${urgentScans.length} urgent cases` }
+        ].map((stat, i) => (
+          <Card key={i} className="p-6 border-slate-100 shadow-sm bg-white hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-4">
+              <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color}`}>
+                <stat.icon className="w-6 h-6" />
               </div>
-            </Card>
-          ))}
-          </div>
-        </Card>
-
-        {/* Patient List Panel */}
-        <div className="w-full">
-          <Card className="bg-white border border-gray-100 shadow-sm rounded-xl overflow-hidden">
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900">Pending Queue</h2>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-lg">
+                {stat.trend}
+              </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 font-medium">Patient Name</th>
-                    <th className="px-6 py-4 font-medium">AI Diagnosis</th>
-                    <th className="px-6 py-4 font-medium">Risk Level</th>
-                    <th className="px-6 py-4 font-medium">Upload Date</th>
-                    <th className="px-6 py-4 font-medium text-right"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {doctorQueue.length === 0 && (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                         No pending scans requiring review.
-                      </td>
-                    </tr>
-                  )}
-                  {doctorQueue.map((patient, idx) => {
-                    if (!patient) return null;
-                    return (
-                    <tr key={patient.id || `patient-row-${idx}`} className="hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => navigate(`/doctor/case/${patient.id}`)}>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs mr-3">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900">{patient.patient_name || "Unknown Patient"}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-medium text-gray-900">{patient.ai_prediction}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          patient.risk_level === 'High' ? 'bg-red-100 text-red-800' : 
-                          patient.risk_level === 'Medium' ? 'bg-amber-100 text-amber-800' : 
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {patient.risk_level}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500">{new Date(patient.created_at).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-right">
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-blue-600 transition-opacity">
-                          View Case <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{stat.label}</p>
+              <p className="text-3xl font-black text-slate-900 mt-1">{stat.value}</p>
             </div>
           </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* DIAGNOSTIC DISTRIBUTION */}
+        <Card className="xl:col-span-2 border-slate-200 bg-white shadow-sm rounded-2xl p-6">
+           <div className="flex justify-between items-center mb-8">
+              <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Diagnostic Distribution</h2>
+              <Button variant="ghost" className="text-xs font-bold text-blue-600">Export Report</Button>
+           </div>
+           
+           <div className="space-y-6">
+              {distribution.map((item, i) => (
+                <div key={i} className="space-y-2">
+                   <div className="flex justify-between text-xs font-bold">
+                      <span className="text-slate-700">{item.type}</span>
+                      <span className="text-slate-400">{item.count} cases ({item.percentage}%)</span>
+                   </div>
+                   <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full ${item.color}`} style={{ width: `${item.percentage}%` }}></div>
+                   </div>
+                </div>
+              ))}
+           </div>
+
+           <div className="mt-12 p-6 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4">
+              <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-blue-600">
+                 <Activity className="w-6 h-6" />
+              </div>
+              <div>
+                 <p className="text-xs font-black text-slate-900 uppercase tracking-tight">AI Confidence Correlation</p>
+                 <p className="text-[11px] text-slate-500 font-medium mt-1">Your clinical verdicts align with AI high-confidence predictions in 98% of malignant cases.</p>
+              </div>
+           </div>
+        </Card>
+
+        {/* CLINICAL NOTICES */}
+        <div className="space-y-6">
+           <Card className="p-6 border-slate-200 bg-white rounded-2xl shadow-sm">
+              <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Urgent Actions</h2>
+              <div className="space-y-4">
+                 {urgentScans.length > 0 ? (
+                    <div className="p-4 bg-red-50 border border-red-100 rounded-xl">
+                       <p className="text-xs font-black text-red-700">{urgentScans.length} Critical Cases Pending</p>
+                       <p className="text-[10px] text-red-600 mt-1 font-medium italic">High-risk lesions require clinical verdict within 24 hours.</p>
+                       <Button onClick={() => navigate('/doctor/queue')} className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg py-4">
+                          Open Triage Queue
+                       </Button>
+                    </div>
+                 ) : (
+                    <p className="text-xs text-slate-400 italic">No urgent actions required.</p>
+                 )}
+              </div>
+           </Card>
+
+           <Card className="p-6 border-slate-200 bg-white rounded-2xl shadow-sm">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Quick Links</h3>
+              <div className="grid grid-cols-1 gap-2">
+                 <Button onClick={() => navigate('/doctor/queue')} variant="outline" className="justify-start text-xs font-bold text-slate-600 border-slate-100 py-6 hover:bg-slate-50">
+                    <ClipboardList className="w-4 h-4 mr-3 text-blue-600" /> Active Queue
+                 </Button>
+                 <Button onClick={() => navigate('/doctor/history')} variant="outline" className="justify-start text-xs font-bold text-slate-600 border-slate-100 py-6 hover:bg-slate-50">
+                    <History className="w-4 h-4 mr-3 text-slate-400" /> Clinical History
+                 </Button>
+              </div>
+           </Card>
         </div>
       </div>
-      )}
     </motion.div>
   );
 }

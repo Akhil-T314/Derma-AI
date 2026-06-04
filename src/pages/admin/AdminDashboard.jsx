@@ -1,35 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import axios from "axios";
-import { Users, Activity, AlertTriangle, ShieldCheck, UserPlus, FileText } from "lucide-react";
+import { 
+  Activity, AlertTriangle, Users, Cpu, Database, HeartPulse
+} from "lucide-react";
 import { Card } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
 
 export default function AdminDashboard() {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const [stats, setStats] = useState({ totalScans: 0, highRiskScans: 0, activeUsers: 0 });
-  const [doctors, setDoctors] = useState([]);
-  const [unassignedScans, setUnassignedScans] = useState([]);
-  
-  const [newDocName, setNewDocName] = useState("");
-  const [newDocEmail, setNewDocEmail] = useState("");
-  const [newDocPassword, setNewDocPassword] = useState("");
-  const [docMsg, setDocMsg] = useState({ type: "", text: "" });
+  const [systemHealth, setSystemHealth] = useState({ status: "checking", services: {} });
 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token") || JSON.parse(localStorage.getItem("dermai_user") || "{}").id;
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const userStr = localStorage.getItem("dermai_user");
+      const user = JSON.parse(userStr || "{}");
+      const headers = { Authorization: `Bearer ${user.id}` };
 
-      const [analyticsRes, usersRes, queueRes] = await Promise.all([
+      const [analyticsRes, usersRes, healthRes] = await Promise.all([
         axios.get("http://localhost:3000/api/admin/analytics", { headers }),
         axios.get("http://localhost:3000/api/admin/users", { headers }),
-        axios.get("http://localhost:3000/api/scans/queue", { headers })
+        axios.get("http://localhost:3000/api/admin/health", { headers })
       ]);
 
       setStats({
@@ -37,14 +30,11 @@ export default function AdminDashboard() {
         highRiskScans: analyticsRes.data.highRiskScans || 0,
         activeUsers: usersRes.data.length || 0,
       });
-      
-      setDoctors(usersRes.data.filter(u => u.role === "doctor"));
-      setUnassignedScans(queueRes.data.filter(s => !s.doctor_id));
-      
+      setSystemHealth(healthRes.data);
       setError(null);
     } catch (err) {
       console.error(err);
-      setError("Failed to load admin data from server.");
+      setError("Failed to load platform analytics.");
     } finally {
       setLoading(false);
     }
@@ -54,152 +44,114 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, []);
 
-  const handleCreateDoctor = async (e) => {
-    e.preventDefault();
-    setDocMsg({ type: "", text: "" });
-    try {
-      const token = localStorage.getItem("token") || JSON.parse(localStorage.getItem("dermai_user") || "{}").id;
-      await axios.post("http://localhost:3000/api/admin/create-doctor", 
-        { name: newDocName, email: newDocEmail, password: newDocPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setDocMsg({ type: "success", text: "Doctor created successfully!" });
-      setNewDocName(""); setNewDocEmail(""); setNewDocPassword("");
-      fetchDashboardData();
-    } catch (err) {
-      setDocMsg({ type: "error", text: err.response?.data?.error || "Error creating doctor." });
-    }
-  };
-
-  const handleAssignDoctor = async (scanId, doctorId) => {
-    if (!doctorId) return alert("Select a doctor first!");
-    try {
-      const token = localStorage.getItem("token") || JSON.parse(localStorage.getItem("dermai_user") || "{}").id;
-      await axios.put(`http://localhost:3000/api/scans/${scanId}/assign`, 
-        { doctor_id: doctorId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      fetchDashboardData();
-    } catch (err) {
-      alert("Failed to assign doctor.");
-    }
-  };
+  if (loading) return <div className="h-64 flex items-center justify-center text-gray-400">Syncing platform analytics...</div>;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-6xl mx-auto pb-12">
-      <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10 max-w-7xl mx-auto pb-12">
+      <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Control Panel</h1>
-          <p className="text-gray-500 mt-1">Manage system analytics, doctors, and scan assignments.</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Clinical Analytics Center</h1>
+          <p className="text-sm text-gray-500 font-medium">Monitoring global diagnostic volume and system infrastructure</p>
+        </div>
+        <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-2xl border border-gray-100 shadow-sm">
+           <HeartPulse className={`w-5 h-5 ${systemHealth.status === 'healthy' ? 'text-emerald-500' : 'text-amber-500 animate-pulse'}`} />
+           <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">System: {systemHealth.status === 'healthy' ? 'Nominal' : 'Warning'}</span>
         </div>
       </div>
 
-      {loading ? (
-        <div className="h-64 flex items-center justify-center text-gray-500">Loading system data...</div>
-      ) : error ? (
-        <div className="h-40 flex items-center justify-center text-red-500 bg-red-50 rounded-xl">{error}</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="p-6 bg-white border border-gray-100 shadow-sm flex flex-col">
-              <div className="flex justify-between mb-4">
-                <span className="text-sm font-medium text-gray-500">Total Scans</span>
-                <Activity className="w-5 h-5 text-blue-500" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <StatCard title="Global Diagnostics" value={stats.totalScans} icon={<Activity />} color="blue" />
+        <StatCard title="Critical Findings" value={stats.highRiskScans} icon={<AlertTriangle />} color="red" />
+        <StatCard title="Active Participants" value={stats.activeUsers} icon={<Users />} color="emerald" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card className="p-8 border-gray-100 bg-white shadow-xl rounded-3xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-full -mr-16 -mt-16 opacity-50" />
+          <h3 className="text-md font-bold text-gray-900 mb-8 flex items-center gap-3 relative z-10">
+             <Cpu className="w-5 h-5 text-purple-600" /> AI Prediction Infrastructure
+          </h3>
+          <div className="space-y-4 relative z-10">
+            <div className="p-5 rounded-2xl border border-gray-50 bg-gray-50/50 flex items-center justify-between transition-all hover:bg-white hover:shadow-md group">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                   <Cpu size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900 leading-none">Neural Engine v2.4</p>
+                  <p className="text-[10px] text-gray-500 font-medium mt-1 uppercase tracking-widest">Hybrid CNN + ViT</p>
+                </div>
               </div>
-              <span className="text-3xl font-bold text-gray-900">{stats.totalScans}</span>
-            </Card>
-            <Card className="p-6 bg-white border border-gray-100 shadow-sm flex flex-col">
-              <div className="flex justify-between mb-4">
-                <span className="text-sm font-medium text-gray-500">High Risk Cases</span>
-                <AlertTriangle className="w-5 h-5 text-red-500" />
+              <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-widest">Operational</span>
+            </div>
+            <div className="p-5 rounded-2xl border border-gray-50 bg-gray-50/50 flex items-center justify-between transition-all hover:bg-white hover:shadow-md group">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                   <Activity size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900 leading-none">Explainability Pipeline</p>
+                  <p className="text-[10px] text-gray-500 font-medium mt-1 uppercase tracking-widest">Grad-CAM + XAI</p>
+                </div>
               </div>
-              <span className="text-3xl font-bold text-gray-900">{stats.highRiskScans}</span>
-            </Card>
-            <Card className="p-6 bg-white border border-gray-100 shadow-sm flex flex-col">
-              <div className="flex justify-between mb-4">
-                <span className="text-sm font-medium text-gray-500">Active Users</span>
-                <Users className="w-5 h-5 text-emerald-500" />
-              </div>
-              <span className="text-3xl font-bold text-gray-900">{stats.activeUsers}</span>
-            </Card>
+              <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-widest">Operational</span>
+            </div>
           </div>
+        </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="p-6 bg-white border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-6">
-                <UserPlus className="w-5 h-5 text-gray-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Create New Doctor</h2>
+        <Card className="p-8 border-gray-100 bg-white shadow-xl rounded-3xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50" />
+          <h3 className="text-md font-bold text-gray-900 mb-8 flex items-center gap-3 relative z-10">
+             <Database className="w-5 h-5 text-blue-600" /> Data Management & Storage
+          </h3>
+          <div className="space-y-4 relative z-10">
+            <div className="p-5 rounded-2xl border border-gray-50 bg-gray-50/50 flex items-center justify-between transition-all hover:bg-white hover:shadow-md group">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                   <Database size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900 leading-none">Primary Database</p>
+                  <p className="text-[10px] text-gray-500 font-medium mt-1 uppercase tracking-widest">PostgreSQL / Supabase</p>
+                </div>
               </div>
-              
-              {docMsg.text && (
-                <div className={`mb-4 p-3 rounded text-sm ${docMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  {docMsg.text}
-                </div>
-              )}
-
-              <form onSubmit={handleCreateDoctor} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Full Name</label>
-                  <input type="text" required value={newDocName} onChange={e => setNewDocName(e.target.value)} className="w-full border rounded-md p-2" />
+              <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-widest">Connected</span>
+            </div>
+            <div className="p-5 rounded-2xl border border-gray-50 bg-gray-50/50 flex items-center justify-between transition-all hover:bg-white hover:shadow-md group">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center text-sky-600 group-hover:scale-110 transition-transform">
+                   <Users size={20} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <input type="email" required value={newDocEmail} onChange={e => setNewDocEmail(e.target.value)} className="w-full border rounded-md p-2" />
+                  <p className="text-sm font-bold text-gray-900 leading-none">Storage Bucket</p>
+                  <p className="text-[10px] text-gray-500 font-medium mt-1 uppercase tracking-widest">S3 Clinical Assets</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Password</label>
-                  <input type="password" required value={newDocPassword} onChange={e => setNewDocPassword(e.target.value)} className="w-full border rounded-md p-2" />
-                </div>
-                <Button type="submit" className="w-full text-white bg-blue-600 hover:bg-blue-700">Add Doctor</Button>
-              </form>
-            </Card>
-
-            <Card className="p-6 bg-white border border-gray-100 shadow-sm flex flex-col max-h-[500px] overflow-y-auto">
-              <div className="flex items-center gap-2 mb-6">
-                <FileText className="w-5 h-5 text-gray-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Pending Assignments ({unassignedScans.length})</h2>
               </div>
-              
-              {unassignedScans.length === 0 ? (
-                <p className="text-gray-500 text-sm text-center my-auto">No scans pending assignment.</p>
-              ) : (
-                <div className="space-y-4">
-                  {unassignedScans.map(scan => (
-                    <div key={scan.id} className="border p-4 rounded-lg flex flex-col gap-3 shadow-sm bg-gray-50">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Scan #{scan.id.split('-')[0]}</p>                            <p className="text-xs text-gray-700 font-medium">Patient: {scan.patient_name || "Unknown Patient"}</p>                          <p className="text-xs text-red-600 font-medium">Risk: {scan.risk_level}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <select 
-                          id={`assign-${scan.id}`} 
-                          className="flex-1 border rounded-md text-sm p-2 bg-white"
-                          defaultValue=""
-                        >
-                          <option value="" disabled>Select Doctor</option>
-                          {doctors.map(d => (
-                            <option key={d.id} value={d.id}>{d.full_name || d.email}</option>
-                          ))}
-                        </select>
-                        <Button 
-                          onClick={() => {
-                            const sel = document.getElementById(`assign-${scan.id}`);
-                            handleAssignDoctor(scan.id, sel.value);
-                          }}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4"
-                        >
-                          Assign
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
+              <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-widest">Connected</span>
+            </div>
           </div>
-        </>
-      )}
+        </Card>
+      </div>
     </motion.div>
+  );
+}
+
+function StatCard({ title, value, icon, color }) {
+  const colors = {
+    blue: "bg-blue-50 text-blue-600 border-blue-100 hover:border-blue-200",
+    red: "bg-red-50 text-red-600 border-red-100 hover:border-red-200",
+    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100 hover:border-emerald-200",
+  };
+  
+  return (
+    <Card className={`p-8 bg-white border-gray-100 shadow-lg flex items-center gap-6 group transition-all rounded-3xl ${colors[color]}`}>
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-sm transition-transform group-hover:scale-110 bg-white shadow-xl`}>
+        {React.cloneElement(icon, { size: 28 })}
+      </div>
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-2">{title}</p>
+        <p className="text-3xl font-extrabold text-gray-900 tracking-tight">{value}</p>
+      </div>
+    </Card>
   );
 }

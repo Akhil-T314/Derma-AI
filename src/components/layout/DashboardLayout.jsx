@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { LogOut, LayoutDashboard, PlusCircle, Activity, Users, Settings, FileText } from "lucide-react";
+import { LogOut, LayoutDashboard, PlusCircle, Activity, Users, Settings, FileText, UserPlus, ClipboardList, History, CalendarCheck } from "lucide-react";
 
 export default function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
@@ -11,19 +11,28 @@ export default function DashboardLayout({ children }) {
     switch (user?.role) {
       case "patient":
         return [
-          { name: "Overview", path: "/patient", icon: LayoutDashboard },
-          { name: "New Scan", path: "/patient/scan", icon: PlusCircle },
-          { name: "My Reports", path: "/patient/reports", icon: FileText },
+          { name: "Health Overview", path: "/patient", icon: LayoutDashboard },
+          { name: "New Clinical Scan", path: "/patient/scan", icon: PlusCircle },
+          { name: "Medical Archive", path: "/patient/reports", icon: FileText },
+          { name: "Clinical Care Team", path: "/patient/care-team", icon: Users },
+          { name: "Profile", path: "/patient/profile", icon: Settings },
+          { name: "Clinical Education", path: "/patient/education", icon: ClipboardList },
         ];
       case "doctor":
         return [
-          { name: "Dashboard", path: "/doctor", icon: LayoutDashboard },
+          { name: "Clinical Overview", path: "/doctor", icon: LayoutDashboard },
+          { name: "Active Triage", path: "/doctor/queue", icon: ClipboardList },
+          { name: "Medical Archive", path: "/doctor/history", icon: History },
+          { name: "Surveillance", path: "/doctor/surveillance", icon: CalendarCheck },
+          { name: "Professional Profile", path: "/doctor/profile", icon: Settings },
         ];
       case "admin":
         return [
           { name: "System Analytics", path: "/admin", icon: Activity },
           { name: "System Activity", path: "/admin/activity", icon: FileText },
           { name: "User Management", path: "/admin/users", icon: Users },
+          { name: "Provision Staff", path: "/admin/provision", icon: UserPlus },
+          { name: "Admin Profile", path: "/admin/profile", icon: Settings },
         ];
       default:
         return [];
@@ -63,8 +72,12 @@ export default function DashboardLayout({ children }) {
         </nav>
         <div className="p-4 border-t border-gray-100">
           <div className="flex items-center mb-4 px-2">
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
-              {user?.name?.charAt(0) || "U"}
+            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm overflow-hidden">
+              {user?.profile_image_url ? (
+                <img src={user.profile_image_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                user?.name?.charAt(0) || "U"
+              )}
             </div>
             <div className="ml-3 overflow-hidden">
               <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>

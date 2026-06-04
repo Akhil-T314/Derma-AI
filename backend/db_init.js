@@ -37,18 +37,55 @@ async function initDB() {
         original_image_url TEXT,
         xai_heatmap_url TEXT,
         preprocessed_image_url TEXT,
-        ai_prediction VARCHAR(50),
+        ai_prediction VARCHAR(100),
         confidence_score DECIMAL,
         risk_level VARCHAR(20),
         recommendation TEXT,
         status VARCHAR(50) DEFAULT 'pending',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        final_prediction VARCHAR(100),
+        primary_prediction VARCHAR(100),
+        primary_confidence DECIMAL,
+        secondary_prediction VARCHAR(100),
+        secondary_confidence DECIMAL,
+        progression_risk DECIMAL,
+        refinement_model VARCHAR(50),
+        doctor_notes TEXT,
+        private_clinical_notes TEXT,
+        final_diagnosis TEXT,
+        action_plan TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
     try {
-      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS preprocessed_image_url TEXT;");
-    } catch(e) { console.log('Column likely exists', e.message); }
+      await pool.query("ALTER TABLE Users ADD COLUMN IF NOT EXISTS age INTEGER;");
+      await pool.query("ALTER TABLE Users ADD COLUMN IF NOT EXISTS gender VARCHAR(20);");
+      await pool.query("ALTER TABLE Users ADD COLUMN IF NOT EXISTS medical_history TEXT;");
+      await pool.query("ALTER TABLE Users ADD COLUMN IF NOT EXISTS profile_image_url TEXT;");
+      await pool.query("ALTER TABLE Users ADD COLUMN IF NOT EXISTS specialization VARCHAR(255);");
+      await pool.query("ALTER TABLE Users ADD COLUMN IF NOT EXISTS qualifications TEXT;");
+      await pool.query("ALTER TABLE Users ADD COLUMN IF NOT EXISTS license_number VARCHAR(100);");
+      await pool.query("ALTER TABLE Users ADD COLUMN IF NOT EXISTS bio TEXT;");
+      
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS localization VARCHAR(100);");
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS xai_lrp_url TEXT;");
+      console.log('-> Clinical metadata columns checked');
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS progression_risk DECIMAL;");
+      console.log('-> Column progression_risk checked');
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS refinement_model VARCHAR(50);");
+      console.log('-> Column refinement_model checked');
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS final_prediction VARCHAR(100);");
+      console.log('-> Column final_prediction checked');
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS primary_prediction VARCHAR(100);");
+      console.log('-> Column primary_prediction checked');
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS primary_confidence DECIMAL;");
+      console.log('-> Column primary_confidence checked');
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS secondary_prediction VARCHAR(100);");
+      console.log('-> Column secondary_prediction checked');
+      await pool.query("ALTER TABLE Scans ADD COLUMN IF NOT EXISTS secondary_confidence DECIMAL;");
+      console.log('-> Column secondary_confidence checked');
+    } catch(e) { console.log('Migration error:', e.message); }
 
     console.log('3. Seeding Default Admin');
     const adminCheck = await pool.query("SELECT * FROM Users WHERE email = 'admin@dermai.com'");

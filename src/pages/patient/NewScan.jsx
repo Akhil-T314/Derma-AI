@@ -14,8 +14,10 @@ export default function NewScan() {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
+  const [localization, setLocalization] = useState("");
 
-  const { uploadScan, error } = useScans();
+  const { uploadScan, error: scanError } = useScans();
+  const [localError, setLocalError] = useState("");
   const navigate = useNavigate();
 
   const handleUpload = (e) => {
@@ -25,16 +27,22 @@ export default function NewScan() {
       setFile(URL.createObjectURL(uploadedFile));
       setRawFile(uploadedFile);
       setResult(null);
+      setLocalError("");
     }
   };
 
   const startScan = async () => {
     if (!rawFile) return;
+    if (!localization) {
+      setLocalError("Please select the body location of the lesion.");
+      return;
+    }
+    setLocalError("");
     setIsScanning(true);
     setProgress(30); // optimistic progress
 
     try {
-      const apiResult = await uploadScan(rawFile);
+      const apiResult = await uploadScan(rawFile, localization);
       setProgress(100);
       setResult(apiResult);
     } catch (err) {
@@ -83,12 +91,33 @@ export default function NewScan() {
                 <img src={file} alt="Lesion preview" className="w-full h-full object-cover" />
               </div>
 
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 ml-1">Body Location</label>
+                <select 
+                  value={localization}
+                  onChange={(e) => setLocalization(e.target.value)}
+                  disabled={isScanning || result}
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm focus:bg-white focus:border-blue-500 transition-all outline-none"
+                >
+                  <option value="">Select location of lesion...</option>
+                  <option value="face">Face</option>
+                  <option value="trunk">Trunk (Chest/Back/Abdomen)</option>
+                  <option value="upper extremity">Upper Extremity (Arm/Hand)</option>
+                  <option value="lower extremity">Lower Extremity (Leg/Foot)</option>
+                  <option value="scalp">Scalp</option>
+                  <option value="ear">Ear</option>
+                  <option value="neck">Neck</option>
+                  <option value="genital">Genital</option>
+                  <option value="acral">Acral (Palms/Soles)</option>
+                </select>
+              </div>
+
               {!isScanning && !result && (
-                <div className="flex space-x-3">
-                  <Button onClick={startScan} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md">
+                <div className="flex space-x-3 pt-2">
+                  <Button onClick={startScan} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-semibold shadow-md shadow-blue-100">
                     Analyze Image
                   </Button>
-                  <Button onClick={resetScan} variant="outline" className="flex-1 py-2 rounded-md border-gray-300">
+                  <Button onClick={resetScan} variant="outline" className="flex-1 py-2 rounded-md border-gray-300 font-medium">
                     Cancel
                   </Button>
                 </div>
@@ -105,10 +134,10 @@ export default function NewScan() {
               <Progress value={progress} className="h-2 bg-blue-100" />
             </div>
           )}
-          {error && (
+          {(localError || scanError) && (
             <div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
-              {error}
+              {localError || scanError}
             </div>
           )}
         </Card>

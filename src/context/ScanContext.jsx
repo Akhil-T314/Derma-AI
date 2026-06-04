@@ -54,10 +54,12 @@ export function ScanProvider({ children }) {
     }
   };
 
-  const uploadScan = async (file) => {
+  const uploadScan = async (file, localization) => {
     setIsLoading(true);
+    setError(null);
     const formData = new FormData();
     formData.append('image', file);
+    formData.append('localization', localization);
 
     try {
       const res = await api.post('/scans/upload', formData, {
@@ -68,8 +70,12 @@ export function ScanProvider({ children }) {
       return res.data;
     } catch (err) {
       console.error("uploadScan Error:", err);
-      setError(err.response?.data?.error || 'Failed to submit scan to ML service.');
-      throw err;
+      // Parse different error shapes: 422 validation, 500 internal, or network error
+      const detail = err.response?.data?.detail;
+      const errorMsg = err.response?.data?.error;
+      const msg = detail || errorMsg || 'Image processing or database failure.';
+      setError(msg);
+      throw new Error(msg);
     } finally {
       setIsLoading(false);
     }

@@ -34,8 +34,9 @@ export default function PatientReports() {
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
               <tr>
-                <th className="px-6 py-4 font-medium">Scan ID</th>
                 <th className="px-6 py-4 font-medium">Date</th>
+                <th className="px-6 py-4 font-medium">AI Diagnosis</th>
+                <th className="px-6 py-4 font-medium">Risk Level</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>   
               </tr>
@@ -43,13 +44,19 @@ export default function PatientReports() {
             <tbody className="divide-y divide-gray-100">
               {myScans.map((scan) => (
                 <tr key={scan.id} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="px-6 py-4 font-medium text-gray-900 flex items-center">
-                    <div className="h-8 w-8 rounded bg-gray-100 flex items-center justify-center text-gray-500 mr-3">
-                      <FileText className="w-4 h-4" />
-                    </div>
-                    {scan.id?.substring(0,8)}
+                  <td className="px-6 py-4 text-gray-500">{new Date(scan.created_at).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 font-medium text-gray-900">
+                    {scan.status === 'reviewed' ? scan.final_diagnosis : (scan.ai_prediction || "Processing...")}
                   </td>
-                  <td className="px-6 py-4 text-gray-500">{new Date(scan.created_at).toLocaleDateString()}</td>      
+                  <td className="px-6 py-4">
+                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                       scan.risk_level === 'High' ? 'bg-red-100 text-red-800' : 
+                       scan.risk_level === 'Medium' ? 'bg-amber-100 text-amber-800' : 
+                       'bg-green-100 text-green-800'
+                     }`}>
+                       {scan.risk_level}
+                     </span>
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       scan.status === 'reviewed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
